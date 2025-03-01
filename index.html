@@ -1,0 +1,654 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Escape</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #fff;
+            overflow: hidden; /* Prevent scrollbars during gameplay */
+        }
+
+        /* Container for the entire game */
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative; /* For absolute positioning of elements */
+        }
+
+        /* Header Styles */
+        #header {
+            text-align: center;
+            padding: 20px;
+            width: 100%;
+        }
+
+        #header h1 {
+            font-size: 3em;
+            margin-bottom: 0.5em;
+            color: #00ffff; /* Neon Cyan */
+            text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff, 0 0 30px #00ffff;
+        }
+
+        /* Main Menu Styles */
+        #main-menu {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            width: 80%;
+            max-width: 400px; /* Limit width on larger screens */
+        }
+
+        .menu-button {
+            background-color: #333;
+            color: #fff;
+            padding: 15px 25px;
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: background-color 0.3s, color 0.3s, transform 0.2s;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .menu-button:hover {
+            background-color: #00ffff;
+            color: #121212;
+            transform: scale(1.05);
+        }
+
+        .menu-button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Theme Selection */
+        #theme-selection {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .theme-button {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: transform 0.2s, border-color 0.3s;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .theme-button:hover, .theme-button.active {
+            transform: scale(1.1);
+            border-color: #00ffff;
+        }
+
+        /* In-Game HUD Styles */
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            color: #fff;
+            z-index: 10; /* Ensure HUD is above the maze */
+        }
+
+        #timer, #score {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 1.1em;
+        }
+
+        /* Maze Container */
+        #maze-container {
+            position: relative; /* For positioning traps and player */
+            width: 80vw;  /* Responsive width */
+            height: 80vh; /* Responsive height */
+            max-width: 600px; /* Limit size on large screens */
+            max-height: 600px;
+            border: 5px solid #00ffff;
+            background-color: #222;
+            margin: 20px auto; /* Center the maze */
+            overflow: hidden; /* Hide parts of the maze outside the border */
+        }
+
+        /* Maze Cell Styles */
+        .maze-cell {
+            position: absolute;
+            box-sizing: border-box;
+            background-color: #333; /* Default wall color */
+            transition: background-color 0.5s; /* Smooth color transitions */
+        }
+
+        .maze-cell.path {
+            background-color: #121212; /* Path color */
+        }
+
+        .maze-cell.start {
+            background-color: green;
+        }
+
+        .maze-cell.end {
+            background-color: red;
+        }
+
+        /* Player Styles */
+        #player {
+            position: absolute;
+            width: 15px;  /* Adjust as needed */
+            height: 15px; /* Adjust as needed */
+            background-color: #00ffff;
+            border-radius: 50%;
+            transition: transform 0.1s linear; /* Smooth movement */
+            z-index: 5;
+        }
+
+        /* Trap Styles */
+        .trap {
+            position: absolute;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 4; /* Below player, above maze */
+            opacity: 0.8; /* Slightly transparent */
+            transition: transform 0.5s ease-in-out, opacity 0.5s;
+        }
+
+        .trap.spike {
+            background-image: url('https://cdn-icons-png.flaticon.com/512/427/427434.png'); /* Example spike trap */
+            /*  width and height will be set in JS based on cell size */
+        }
+
+        /* Add more trap types as needed */
+
+        /* Game Over Screen */
+        #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20; /* Above everything else */
+            text-align: center;
+        }
+
+        #game-over-screen h2 {
+            font-size: 3em;
+            color: #ff4d4d; /* Red */
+            margin-bottom: 1em;
+        }
+
+        #game-over-screen p {
+            font-size: 1.5em;
+            margin-bottom: 2em;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #header h1 {
+                font-size: 2em;
+            }
+            .menu-button {
+                font-size: 1em;
+            }
+            #maze-container {
+                width: 95vw;
+                height: 70vh;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #hud {
+                flex-direction: column; /* Stack HUD elements */
+                align-items: flex-start; /* Align to the left */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="header">
+            <h1>Maze Escape</h1>
+        </div>
+
+        <div id="main-menu">
+            <button class="menu-button" id="start-button" tabindex="1">Start Game</button>
+            <button class="menu-button" id="settings-button" tabindex="2">Settings</button>
+            <button class="menu-button" id="leaderboard-button" tabindex="3">Leaderboard</button>
+
+            <div id="theme-selection">
+                <div class="theme-button active" data-theme="neon" style="background-image: url('https://images.unsplash.com/photo-1509815485568-a6c30c70e9d7?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');" tabindex="4"></div>
+                <div class="theme-button" data-theme="dungeon" style="background-image: url('https://images.unsplash.com/photo-1534841986014-b940d75f5190?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');" tabindex="5"></div>
+                <div class="theme-button" data-theme="sci-fi" style="background-image: url('https://images.unsplash.com/photo-1518136247453-74e7b5265980?q=80&w=1974&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');" tabindex="6"></div>
+            </div>
+        </div>
+
+        <div id="hud">
+            <div id="timer">Time: 0</div>
+            <div id="score">Score: 0</div>
+        </div>
+
+        <div id="maze-container">
+            <!-- Maze cells and player will be added here by JavaScript -->
+        </div>
+
+        <div id="game-over-screen">
+            <h2>Game Over!</h2>
+            <p>Your Score: <span id="final-score">0</span></p>
+            <button class="menu-button" id="restart-button">Restart</button>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Variables ---
+        let maze = [];
+        let playerPos = { x: 0, y: 0 };
+        let cellSize;
+        let mazeWidth = 21;  // Odd number for maze generation
+        let mazeHeight = 21; // Odd number for maze generation
+        let gameRunning = false;
+        let score = 0;
+        let timer = 0;
+        let timerInterval;
+        let currentTheme = 'neon'; // Default theme
+
+        // --- DOM Elements ---
+        const startButton = document.getElementById('start-button');
+        const settingsButton = document.getElementById('settings-button');
+        const leaderboardButton = document.getElementById('leaderboard-button');
+        const themeButtons = document.querySelectorAll('.theme-button');
+        const mazeContainer = document.getElementById('maze-container');
+        const hudTimer = document.getElementById('timer');
+        const hudScore = document.getElementById('score');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+        const playerElement = document.createElement('div'); // Create player here
+
+        // --- Initialization ---
+        function init() {
+            calculateCellSize();
+            setupEventListeners();
+            applyTheme(currentTheme);
+
+            // Pre-create the player element (but don't add it to the DOM yet)
+            playerElement.id = 'player';
+        }
+
+        function calculateCellSize() {
+            const containerWidth = mazeContainer.offsetWidth;
+            const containerHeight = mazeContainer.offsetHeight;
+            cellSize = Math.min(containerWidth / mazeWidth, containerHeight / mazeHeight);
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            startButton.addEventListener('click', startGame);
+            restartButton.addEventListener('click', restartGame);
+
+            themeButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    currentTheme = button.dataset.theme;
+                    applyTheme(currentTheme);
+                    themeButtons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+                });
+            });
+
+            window.addEventListener('keydown', handleKeyPress);
+            window.addEventListener('resize', () => {
+                if (!gameRunning) {
+                    calculateCellSize();
+                    // Only regenerate and redraw if the game is NOT running
+                    generateMaze();
+                    drawMaze();
+                } else {
+                    // If the game IS running, just recalculate cell size and reposition
+                    calculateCellSize();
+                    repositionElements();
+                }
+            });
+        }
+
+        // --- Theme Handling ---
+        function applyTheme(theme) {
+            // Reset styles first (optional, depends on your theme specifics)
+            document.body.style.backgroundColor = '#121212';
+            document.querySelectorAll('.maze-cell').forEach(cell => {
+                cell.style.backgroundColor = ''; // Remove inline styles
+            });
+
+            switch (theme) {
+                case 'neon':
+                    // Styles are mostly defined in CSS, so just ensure correct classes
+                    break;
+                case 'dungeon':
+                    document.body.style.backgroundColor = '#333';
+                    document.querySelectorAll('.maze-cell.path').forEach(cell => {
+                        cell.style.backgroundColor = '#1a1a1a';
+                    });
+                    break;
+                case 'sci-fi':
+                    document.body.style.backgroundColor = '#224';
+                    document.querySelectorAll('.maze-cell.path').forEach(cell => {
+                        cell.style.backgroundColor = '#112';
+                    });
+                    break;
+            }
+        }
+
+        // --- Game Start/Restart ---
+        function startGame() {
+            document.getElementById('main-menu').style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            gameRunning = true;
+            score = 0;
+            timer = 0;
+            hudScore.textContent = 'Score: 0';
+            hudTimer.textContent = 'Time: 0';
+
+            generateMaze();
+            drawMaze();
+            placePlayer();
+            placeTraps(); // Add traps to the maze
+            startTimer();
+        }
+
+        function restartGame() {
+            gameOverScreen.style.display = 'none';
+            startGame(); // Reuse the startGame logic
+        }
+
+        // --- Maze Generation (Recursive Backtracker) ---
+        function generateMaze() {
+            // 1. Initialize the maze grid
+            maze = [];
+            for (let y = 0; y < mazeHeight; y++) {
+                maze[y] = [];
+                for (let x = 0; x < mazeWidth; x++) {
+                    maze[y][x] = {
+                        type: 'wall',
+                        visited: false,
+                        x: x,
+                        y: y
+                    };
+                }
+            }
+
+            // 2. Recursive Backtracker Algorithm
+            function carvePath(x, y) {
+                maze[y][x].visited = true;
+                maze[y][x].type = 'path';
+
+                const directions = [
+                    { dx: 0, dy: -2 }, // Up
+                    { dx: 2, dy: 0 },  // Right
+                    { dx: 0, dy: 2 },  // Down
+                    { dx: -2, dy: 0 }   // Left
+                ];
+
+                // Shuffle directions for randomness
+                directions.sort(() => Math.random() - 0.5);
+
+                for (const dir of directions) {
+                    const nx = x + dir.dx;
+                    const ny = y + dir.dy;
+
+                    if (nx >= 0 && nx < mazeWidth && ny >= 0 && ny < mazeHeight && !maze[ny][nx].visited) {
+                        // Carve path through the wall
+                        maze[y + dir.dy / 2][x + dir.dx / 2].type = 'path';
+                        carvePath(nx, ny);
+                    }
+                }
+            }
+
+            // 3. Start carving from a random odd-numbered cell
+            const startX = Math.floor(Math.random() * (mazeWidth / 2)) * 2 + 1;
+            const startY = Math.floor(Math.random() * (mazeHeight / 2)) * 2 + 1;
+            carvePath(startX, startY);
+
+            // 4. Set start and end points
+            maze[startY][startX].type = 'start';
+            playerPos = { x: startX, y: startY };
+
+            // Find a suitable end point (furthest from start)
+            let endX = startX, endY = startY;
+            let maxDistance = 0;
+
+            for(let y = 0; y < mazeHeight; y++){
+                for(let x = 0; x < mazeWidth; x++){
+                    if(maze[y][x].type === 'path'){
+                        let distance = Math.abs(x - startX) + Math.abs(y - startY);
+                        if(distance > maxDistance){
+                            maxDistance = distance;
+                            endX = x;
+                            endY = y;
+                        }
+                    }
+                }
+            }
+            maze[endY][endX].type = 'end';
+        }
+
+        // --- Drawing the Maze ---
+        function drawMaze() {
+            mazeContainer.innerHTML = ''; // Clear previous maze
+
+            for (let y = 0; y < mazeHeight; y++) {
+                for (let x = 0; x < mazeWidth; x++) {
+                    const cell = maze[y][x];
+                    const cellElement = document.createElement('div');
+                    cellElement.classList.add('maze-cell');
+                    cellElement.style.width = `${cellSize}px`;
+                    cellElement.style.height = `${cellSize}px`;
+                    cellElement.style.left = `${x * cellSize}px`;
+                    cellElement.style.top = `${y * cellSize}px`;
+
+                    if (cell.type === 'wall') {
+                        cellElement.classList.add('wall');
+                    } else {
+                        cellElement.classList.add('path');
+                        if (cell.type === 'start') {
+                            cellElement.classList.add('start');
+                        } else if (cell.type === 'end') {
+                            cellElement.classList.add('end');
+                        }
+                    }
+                    mazeContainer.appendChild(cellElement);
+                }
+            }
+            applyTheme(currentTheme); // Re-apply theme after drawing
+        }
+
+        // --- Player Placement and Movement ---
+        function placePlayer() {
+            // Remove the player if it already exists
+            if (document.getElementById('player')) {
+                mazeContainer.removeChild(playerElement);
+            }
+            mazeContainer.appendChild(playerElement); // Now add it
+            repositionPlayer(); // Initial positioning
+        }
+
+        function repositionPlayer() {
+            playerElement.style.left = `${playerPos.x * cellSize + (cellSize / 2) - (playerElement.offsetWidth / 2)}px`;
+            playerElement.style.top = `${playerPos.y * cellSize + (cellSize / 2) - (playerElement.offsetHeight / 2)}px`;
+        }
+
+        function handleKeyPress(event) {
+            if (!gameRunning) return;
+
+            let newX = playerPos.x;
+            let newY = playerPos.y;
+
+            switch (event.key) {
+                case 'ArrowUp':    newY -= 1; break;
+                case 'ArrowDown':  newY += 1; break;
+                case 'ArrowLeft':  newX -= 1; break;
+                case 'ArrowRight': newX += 1; break;
+                default: return; // Ignore other keys
+            }
+
+            // Prevent default scrolling behavior for arrow keys
+            event.preventDefault();
+
+            if (isValidMove(newX, newY)) {
+                playerPos.x = newX;
+                playerPos.y = newY;
+                repositionPlayer();
+                checkCollision(); // Check for trap collisions
+                checkWinCondition();
+            }
+        }
+
+        function isValidMove(x, y) {
+            // Check boundaries
+            if (x < 0 || x >= mazeWidth || y < 0 || y >= mazeHeight) {
+                return false;
+            }
+
+            // Check for walls
+            if (maze[y][x].type === 'wall') {
+                return false;
+            }
+
+            return true;
+        }
+
+        // --- Trap Placement ---
+        function placeTraps() {
+            // Clear existing traps
+            document.querySelectorAll('.trap').forEach(trap => trap.remove());
+
+            const numTraps = Math.floor(mazeWidth * mazeHeight * 0.05); // ~5% of cells as traps
+
+            for (let i = 0; i < numTraps; i++) {
+                let trapX, trapY;
+                do {
+                    trapX = Math.floor(Math.random() * mazeWidth);
+                    trapY = Math.floor(Math.random() * mazeHeight);
+                } while (maze[trapY][trapX].type !== 'path' || (trapX === playerPos.x && trapY === playerPos.y));
+
+                const trapElement = document.createElement('div');
+                trapElement.classList.add('trap', 'spike'); // Example: spike trap
+                trapElement.style.width = `${cellSize * 0.8}px`; // Slightly smaller than cell
+                trapElement.style.height = `${cellSize * 0.8}px`;
+                trapElement.style.left = `${trapX * cellSize + cellSize * 0.1}px`;
+                trapElement.style.top = `${trapY * cellSize + cellSize * 0.1}px`;
+                mazeContainer.appendChild(trapElement);
+            }
+        }
+
+        // --- Collision Detection (Traps) ---
+        function checkCollision() {
+            const playerRect = playerElement.getBoundingClientRect();
+            const traps = document.querySelectorAll('.trap');
+
+            for (const trap of traps) {
+                const trapRect = trap.getBoundingClientRect();
+
+                if (playerRect.left < trapRect.right &&
+                    playerRect.right > trapRect.left &&
+                    playerRect.top < trapRect.bottom &&
+                    playerRect.bottom > trapRect.top) {
+                    // Collision detected!
+                    gameOver();
+                    return; // Stop checking after first collision
+                }
+            }
+        }
+
+        // --- Win Condition ---
+        function checkWinCondition() {
+            const endCell = maze[playerPos.y][playerPos.x];
+            if (endCell.type === 'end') {
+                score += 100; // Base score for winning
+                score += Math.max(0, 100 - timer); // Bonus for speed
+                hudScore.textContent = `Score: ${score}`;
+                // You could add a "next level" option here, or just end the game
+                gameOver(true); // Indicate a win
+            }
+        }
+
+        // --- Timer ---
+        function startTimer() {
+            clearInterval(timerInterval); // Clear any existing timer
+            timerInterval = setInterval(() => {
+                timer++;
+                hudTimer.textContent = `Time: ${timer}`;
+            }, 1000);
+        }
+
+        // --- Game Over ---
+        function gameOver(win = false) {
+            gameRunning = false;
+            clearInterval(timerInterval);
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'flex';
+
+            if(win){
+                document.querySelector("#game-over-screen h2").textContent = "You Win!";
+            } else {
+                document.querySelector("#game-over-screen h2").textContent = "Game Over!";
+            }
+        }
+
+        // --- Reposition elements on resize ---
+        function repositionElements() {
+            // Reposition maze cells
+            const cells = document.querySelectorAll('.maze-cell');
+            cells.forEach(cell => {
+                const x = parseInt(cell.style.left) / (parseInt(cell.style.width) + 0); // + 0 to consider border
+                const y = parseInt(cell.style.top) / (parseInt(cell.style.height) + 0);
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.left = `${x * cellSize}px`;
+                cell.style.top = `${y * cellSize}px`;
+            });
+
+            // Reposition player
+            repositionPlayer();
+
+            // Reposition traps
+            const traps = document.querySelectorAll('.trap');
+            traps.forEach(trap => {
+                const x = parseInt(trap.style.left) / (parseInt(trap.style.width) + 0);
+                const y = parseInt(trap.style.top) / (parseInt(trap.style.height) + 0);
+                trap.style.width = `${cellSize * 0.8}px`;
+                trap.style.height = `${cellSize * 0.8}px`;
+                trap.style.left = `${x * cellSize}px`;
+                trap.style.top = `${y * cellSize}px`;
+            });
+        }
+
+        // --- Initialize the Game ---
+        init();
+    </script>
+</body>
+</html>
